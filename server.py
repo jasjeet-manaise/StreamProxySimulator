@@ -27,6 +27,24 @@ is_playlist_stuck = False
 # Recovery settings
 stuck_recovery_timeout = 60  # Time in seconds after which the stuck condition is reset
 
+# Packet Drop Simulation for Playlist Requests
+drop_packets_enabled = True
+drop_after_playlists = 5
+is_dropping_packets = False
+
+# Segment Failure Simulation
+segment_failure_enabled = True
+segment_failure_frequency = 4  # Fail every nth segment request
+segment_failure_code = 404  # Error code to respond with on failure
+
+
+# Function to handle packet drop logic for playlist requests
+async def handle_packet_drop_for_playlists():
+    global is_dropping_packets
+    if drop_packets_enabled:
+        print("Dropping all playlist requests to simulate connection timeout.")
+        is_dropping_packets = True
+
 
 # Function to handle stuck playlist logic
 async def handle_stuck_playlist(request: Request):
@@ -35,11 +53,12 @@ async def handle_stuck_playlist(request: Request):
     playlist_request_count += 1
     print(f"Playlist request count: {playlist_request_count}")
 
-    # Trigger the stuck playlist condition after a threshold
+    if drop_packets_enabled and playlist_request_count > drop_after_playlists and not is_dropping_packets:
+        await handle_packet_drop_for_playlists()
+
     if is_stuck_playlist_enabled and playlist_request_count > playlist_stick_threshold:
         is_playlist_stuck = True
 
-        # Cache the playlist content on the first request that triggers the stuck condition
         if cached_playlist_content is not None:
             print("Serving cached playlist to simulate stuck playlist.")
             return Response(
@@ -47,12 +66,11 @@ async def handle_stuck_playlist(request: Request):
                 media_type="application/vnd.apple.mpegurl" if ".m3u8" in request.url.path else "application/dash+xml"
             )
 
-        # Start the recovery timer if stuck condition is first triggered
         if cached_playlist_content is None:
             print("Stuck playlist detected. Starting recovery timer...")
             asyncio.create_task(reset_stuck_playlist())
 
-    return None  # Continue normal processing if not stuck
+    return None
 
 
 # Function to reset the stuck playlist state
@@ -79,22 +97,49 @@ async def handle_audio_delay(request: Request):
             print(f"Delaying response for {delay_duration} seconds...")
             await asyncio.sleep(delay_duration)
             is_delaying = False
-            segment_count = 0  # Reset the segment count
+            segment_count = 0
             print("Resuming normal response streaming...")
+
+
+# Function to handle segment failure logic
+async def handle_segment_failure(request: Request):
+    global segment_count
+
+    if segment_failure_enabled and ".m3u8" in request.url.path or ".mpd" in request.url.path:
+        segment_count += 1
+        print(f"Segment request count: {segment_count}")
+
+        # Fail every nth segment request
+        if segment_count % segment_failure_frequency == 0:
+            print(f"Failing segment request with error code {segment_failure_code}")
+            return Response(
+                content=f"Simulated failure with error code {segment_failure_code}",
+                status_code=segment_failure_code
+            )
+
+    return None
 
 
 # Proxy request function
 async def proxy_request(request: Request):
     global session_started, cached_playlist_content
 
-    # Complete URL on the target server, including query parameters
+    # if is_dropping_packets:
+    #     print("Simulating connection timeout by dropping the playlist request.")
+    #     await asyncio.sleep(60)
+    #     return Response(content="Connection timeout simulated.", status_code=504)
+
     target_url = f"{TARGET_SERVER}{request.url.path}?{request.url.query}"
 
-    # Check if the request is for a playlist
-    if ".m3u8" in request.url.path or ".mpd" in request.url.path:
-        stuck_response = await handle_stuck_playlist(request)
-        if stuck_response:
-            return stuck_response
+    # if ".m3u8" in request.url.path or ".mpd" in request.url.path:
+    #     stuck_response = await handle_stuck_playlist(request)
+    #     if stuck_response:
+    #         return stuck_response
+
+    # Check for segment failure
+    segment_failure_response = await handle_segment_failure(request)
+    if segment_failure_response:
+        return segment_failure_response
 
     # Proxy the request to the target server
     async with httpx.AsyncClient() as client:
