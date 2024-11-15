@@ -93,12 +93,11 @@ async def handle_audio_delay(proxy: ProxySettings):
         proxy.segment_count += 1
         await log_message(f"Received {proxy.segment_count} audio segment request")
 
-        if proxy.segment_count > proxy.delay_after_segments and not proxy.is_delaying:
-            is_delaying = True
+        if proxy.segment_count % (proxy.delay_after_segments + 1) and not proxy.is_delaying:
+            proxy.is_delaying = True
             await log_message(f"Delaying response for {proxy.delay_duration} seconds...")
             await asyncio.sleep(proxy.delay_duration)
             proxy.is_delaying = False
-            proxy.segment_count = 0
             await log_message("Resuming normal response streaming...")
 
 
@@ -215,7 +214,7 @@ async def generateurl(request: Request, body: GenerateUrlRequest):
 @app.api_route("/stream/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
 async def stream(request: Request, path: str):
     uid = ProxySettings.get_uid(request.url.path, 'uid')
-
+    print("uid", uid)
     if uid in proxies.keys():
         proxy = proxies[uid]
         proxy.update_url(request)
