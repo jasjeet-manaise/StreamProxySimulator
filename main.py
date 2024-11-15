@@ -6,8 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 import hashlib
 from proxy import ProxySettings
 from typing import List, Optional
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = FastAPI()
+
+SITE = os.getenv("SITE_URL", "localhost:8000")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -200,7 +207,7 @@ async def generateurl(request: Request, body: GenerateUrlRequest):
 
     proxies[hash] = ProxySettings(params)
 
-    generated_url = f"localhost:8000/stream/uid_{hash}"
+    generated_url = f"{SITE}/stream/uid_{hash}"
 
     return {"generatedUrl": generated_url}
 
