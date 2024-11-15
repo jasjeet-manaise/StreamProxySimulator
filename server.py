@@ -18,7 +18,7 @@ delay_duration = 10  # Delay duration in seconds
 is_delaying = False
 
 # Stuck playlist simulation variables
-is_stuck_playlist_enabled = True
+is_stuck_playlist_enabled = False
 playlist_request_count = 0
 playlist_stick_threshold = 10  # Number of requests after which the playlist will "stick"
 cached_playlist_content = None
@@ -28,12 +28,12 @@ is_playlist_stuck = False
 stuck_recovery_timeout = 60  # Time in seconds after which the stuck condition is reset
 
 # Packet Drop Simulation for Playlist Requests
-drop_packets_enabled = True
+drop_packets_enabled = False
 drop_after_playlists = 5
 is_dropping_packets = False
 
 # Segment Failure Simulation
-segment_failure_enabled = True
+segment_failure_enabled = False
 segment_failure_frequency = 4  # Fail every nth segment request
 segment_failure_code = 404  # Error code to respond with on failure
 
@@ -105,7 +105,7 @@ async def handle_audio_delay(request: Request):
 async def handle_segment_failure(request: Request):
     global segment_count
 
-    if segment_failure_enabled and ".m3u8" in request.url.path or ".mpd" in request.url.path:
+    if segment_failure_enabled and (".m3u8" in request.url.path or ".mpd" in request.url.path):
         segment_count += 1
         print(f"Segment request count: {segment_count}")
 
@@ -120,23 +120,24 @@ async def handle_segment_failure(request: Request):
     return None
 
 
-# Proxy request function
+# Proxy request function with bandwidth limiting
 async def proxy_request(request: Request):
     global session_started, cached_playlist_content
 
-    # if is_dropping_packets:
-    #     print("Simulating connection timeout by dropping the playlist request.")
-    #     await asyncio.sleep(60)
-    #     return Response(content="Connection timeout simulated.", status_code=504)
+    if is_dropping_packets:
+        print("Simulating connection timeout by dropping the playlist request.")
+        await asyncio.sleep(60)
+        return Response(content="Connection timeout simulated.", status_code=504)
 
     target_url = f"{TARGET_SERVER}{request.url.path}?{request.url.query}"
 
-    # if ".m3u8" in request.url.path or ".mpd" in request.url.path:
-    #     stuck_response = await handle_stuck_playlist(request)
-    #     if stuck_response:
-    #         return stuck_response
+    # Handle stuck playlist logic
+    if ".m3u8" in request.url.path or ".mpd" in request.url.path:
+        stuck_response = await handle_stuck_playlist(request)
+        if stuck_response:
+            return stuck_response
 
-    # Check for segment failure
+    # Handle segment failure logic
     segment_failure_response = await handle_segment_failure(request)
     if segment_failure_response:
         return segment_failure_response
@@ -151,12 +152,12 @@ async def proxy_request(request: Request):
             content=await request.body()
         ) as response:
 
-            # Cache the playlist content if the stuck condition is triggered
+            # Cache playlist content if stuck playlist condition is triggered
             if is_playlist_stuck and cached_playlist_content is None:
                 cached_playlist_content = await response.aread()
                 print("Cached playlist content for stuck simulation.")
 
-            # Handle audio delay logic if enabled
+            # Handle audio delay if enabled
             if audio_delay_enabled:
                 await handle_audio_delay(request)
 
