@@ -2,3 +2,5 @@ fastapi
 httpx
 pydantic
 python-dotenv
+uvicorn[standard]
+proxy-settings
