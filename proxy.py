@@ -1,6 +1,7 @@
 from fastapi import Request
 import re
 
+
 class ProxySettings:
     def __init__(self, settings: dict):
         # Session and segment tracking
@@ -48,8 +49,7 @@ class ProxySettings:
         return None
 
     def update_url(self, request: Request):
-        if self.target_url == '':
-            pattern = r'/stream/uid_[^/]+/'
-            self.path = "/" + re.sub(pattern, '', request.url.path, count=1)
-            self.query = request.url.query
-            self.target_url = f"{self.target_server}{self.path}?{self.query}"
+        pattern = r'/stream/uid_[^/]+/'
+        self.path = "/" + re.sub(pattern, '', request.url.path, count=1)
+        self.query = request.url.query
+        self.target_url = f"{self.target_server}{self.path}?{self.query}"
