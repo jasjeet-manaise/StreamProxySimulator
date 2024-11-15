@@ -270,7 +270,7 @@ function App() {
             }}
             onClick={() => handleSimulationClick("dropPacket")}
           >
-            <h6 className="simulation-title">Packet Drop Simulation</h6>
+            <h6 className="simulation-title">Playlist Drop Simulation</h6>
             {selectedSimulation === "dropPacket" && (
               <div
                 className="simulation-options-box"
