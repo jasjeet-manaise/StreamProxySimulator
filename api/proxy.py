@@ -6,7 +6,7 @@ class ProxySettings:
     def __init__(self, settings: dict):
         # Session and segment tracking
         self.session_started = False
-        self.segment_count = 1
+        self.segment_count = 0
 
         # Target server for proxying requests
         self.target_server = settings.get('url', "")
@@ -16,6 +16,7 @@ class ProxySettings:
         self.delay_after_segments = settings.get('segments', 0)
         self.delay_duration = settings.get('delay', 0)
         self.is_delaying = False
+        self.audio_segment_count = 0
 
         # Stuck playlist simulation
         self.is_stuck_playlist_enabled = settings.get('simulate') == 'stuckPlaylist'
@@ -28,7 +29,7 @@ class ProxySettings:
         # Packet drop simulation
         self.drop_packets_enabled = settings.get('simulate') == 'dropPacket'
         self.drop_after_playlists = settings.get('dropAfterPlaylists', 0)
-        self.is_dropping_packets = False
+        self.is_dropping_playlist = False
 
         # Segment failure simulation
         self.segment_failure_enabled = settings.get('simulate') == 'segmentFailure'
